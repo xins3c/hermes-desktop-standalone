@@ -25,9 +25,25 @@ jobs:
       - name: Checkout this repo (build.sh + patch script)
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
       - name: Build Hermes Desktop light
+        env:
+          # npm ci has been flaky on runners (ECONNRESET mid-fetch)
+          NPM_CONFIG_FETCH_RETRIES: '8'
+          NPM_CONFIG_FETCH_RETRY_FACTOR: '3'
+          NPM_CONFIG_FETCH_RETRY_MINTIMEOUT: '60000'
         run: |
           chmod +x build.sh
-          ./build.sh "${{ github.event.inputs.ref || 'main' }}"
+          # build.sh is idempotent (rm -rf src each pass); retry network flakes
+          for attempt in 1 2 3; do
+            echo "::group::attempt $attempt"
+            if ./build.sh "${{ github.event.inputs.ref || 'main' }}"; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            [ "$attempt" -lt 3 ] && sleep 30
+          done
+          echo "build failed after 3 attempts" >&2
+          exit 1
 
       - name: Upload artifacts (always, for inspection)
         uses: actions/upload-artifact@v4
