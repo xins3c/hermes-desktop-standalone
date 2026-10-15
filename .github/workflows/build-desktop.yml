@@ -1,0 +1,55 @@
+name: Build Hermes Desktop (Linux light)
+
+on:
+  schedule:
+    - cron: '0 14 * * 1'      # Mondays 14:00 UTC — weekly
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Upstream ref (tag, branch or SHA). Default: main'
+        required: false
+        default: 'main'
+
+permissions:
+  contents: write             # create release with the AppImage
+
+concurrency:
+  group: desktop-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Build Hermes Desktop light
+        run: |
+          chmod +x build.sh
+          ./build.sh "${{ github.event.inputs.ref || 'main' }}"
+
+      - name: Upload artifacts (always, for inspection)
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-desktop-${{ github.run_number }}
+          path: out/*
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Desktop ${{ github.run_number }} — ${{ github.event.inputs.ref || 'main' }}
+          files: out/*
+          body: |
+            Bleeding-edge build of NousResearch/hermes-agent `main`.
+            Provenance in BUILD_INFO.txt. Self-built: no auto-update feed;
+            replace the AppImage manually.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify:
+    needs: build
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Report status
+        run: echo "Build ${{ github.run_number }} finished with status ${{ needs.build.result }} — check Actions tab / Releases"
