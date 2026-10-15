@@ -4,6 +4,8 @@ set -euo pipefail
 
 REF="${1:?usage: build.sh <ref>}"
 UPSTREAM="https://github.com/NousResearch/hermes-agent.git"
+# Resolve once, BEFORE cd — realpath of BASH_SOURCE dies after cd src.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 1. Ref -> full SHA; fail closed.
 SHA="$(git ls-remote "$UPSTREAM" "refs/heads/$REF" "refs/tags/$REF" "refs/tags/${REF}^{}" | awk 'NR==1{print $1}')"
@@ -26,7 +28,7 @@ $PY scripts/bundles/desktop.py --commit "$SHA" --variant light \
    --prepare-only --work "$PWD/.build/desktop-job" --cache "$PWD/.cache/desktop-inputs"
 
 # 4. Patch the icons toolset (upstream CJS/module-type bug) + republish manifests.
-node "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/patch-icons-toolset.mjs" "$PWD"
+node "$SCRIPT_DIR/patch-icons-toolset.mjs" "$PWD"
 
 # 5. Consume: package the AppImage.
 $PY scripts/bundles/desktop.py --prepared "$PWD/.build/desktop-job/prepared.json"
