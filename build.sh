@@ -26,7 +26,7 @@ $PY scripts/bundles/desktop.py --commit "$SHA" --variant light \
    --prepare-only --work "$PWD/.build/desktop-job" --cache "$PWD/.cache/desktop-inputs"
 
 # 4. Patch the icons toolset (upstream CJS/module-type bug) + republish manifests.
-node patch-icons-toolset.mjs "$PWD"
+node "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/patch-icons-toolset.mjs" "$PWD"
 
 # 5. Consume: package the AppImage.
 $PY scripts/bundles/desktop.py --prepared "$PWD/.build/desktop-job/prepared.json"
